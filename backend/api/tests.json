@@ -1,0 +1,49 @@
+{
+  "tests": [
+    {
+      "name": "GET stats",
+      "method": "GET",
+      "path": "/?route=stats",
+      "expectedStatus": 200,
+      "expectedBody": {"sites": 3},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET sites",
+      "method": "GET",
+      "path": "/?route=sites",
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET members",
+      "method": "GET",
+      "path": "/?route=members",
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET quests",
+      "method": "GET",
+      "path": "/?route=quests",
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET achievements",
+      "method": "GET",
+      "path": "/?route=achievements",
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "POST invite",
+      "method": "POST",
+      "path": "/?route=invite",
+      "body": {"method": "telegram", "target": "@testuser", "site_id": 1},
+      "expectedStatus": 200,
+      "expectedBody": {"invite_url": "string"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

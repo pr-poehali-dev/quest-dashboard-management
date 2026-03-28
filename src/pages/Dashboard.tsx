@@ -1,23 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import { Section } from "@/App";
+import { api } from "@/lib/api";
 
 interface DashboardProps {
   onNavigate: (section: Section) => void;
 }
-
-const stats = [
-  { label: "Активных сайтов", value: "3", icon: "Globe", trend: "+1 за месяц" },
-  { label: "Квестов всего", value: "12", icon: "Map", trend: "4 активных" },
-  { label: "Участников", value: "47", icon: "Users", trend: "+8 за неделю" },
-  { label: "Пройдено уровней", value: "284", icon: "Trophy", trend: "за всё время" },
-];
-
-const pendingRequests = [
-  { id: 1, name: "Алексей Смирнов", email: "alex@example.com", site: "Квест «Тайна замка»", date: "27 марта" },
-  { id: 2, name: "Мария Козлова", email: "maria@example.com", site: "Квест «Городской детектив»", date: "27 марта" },
-  { id: 3, name: "Дмитрий Волков", email: "dmitry@example.com", site: "Квест «Лесная загадка»", date: "26 марта" },
-];
 
 const recentActivity = [
   { text: "Алексей прошёл уровень 3 в «Тайне замка»", time: "5 мин назад", icon: "CheckCircle" },
@@ -29,13 +17,25 @@ const recentActivity = [
 export default function Dashboard({ onNavigate }: DashboardProps) {
   const [acceptedSite, setAcceptedSite] = useState(false);
   const [acceptedIds, setAcceptedIds] = useState<number[]>([]);
+  const [statsData, setStatsData] = useState({ sites: 0, quests: 0, members: 0, levels_solved: 0 });
+  const [pendingMembers, setPendingMembers] = useState<{ id: number; name: string; email: string; joined_at: string }[]>([]);
+
+  useEffect(() => {
+    api.stats().then((d) => { if (d && !d.error) setStatsData(d); });
+    api.members.list().then((data) => {
+      if (Array.isArray(data)) {
+        setPendingMembers(data.filter((m: { status: string }) => m.status === "pending"));
+      }
+    });
+  }, []);
 
   const handleAcceptSite = () => {
     setAcceptedSite(true);
     setTimeout(() => setAcceptedSite(false), 3000);
   };
 
-  const handleAcceptRequest = (id: number) => {
+  const handleAcceptRequest = async (id: number) => {
+    await api.members.update(id, { status: "active" });
     setAcceptedIds((prev) => [...prev, id]);
   };
 
@@ -75,7 +75,12 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => (
+        {[
+          { label: "Активных сайтов", value: statsData.sites, icon: "Globe", trend: "подключено" },
+          { label: "Квестов всего", value: statsData.quests, icon: "Map", trend: "путей" },
+          { label: "Участников", value: statsData.members, icon: "Users", trend: "зарегистрировано" },
+          { label: "Пройдено уровней", value: statsData.levels_solved, icon: "Trophy", trend: "за всё время" },
+        ].map((stat) => (
           <div key={stat.label} className="stat-card navy-card rounded-lg">
             <div className="flex items-start justify-between mb-3">
               <div
@@ -102,39 +107,33 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             </h3>
             <span
               className="text-xs font-montserrat font-bold px-2 py-0.5 rounded"
-              style={{
-                background: "hsl(43 85% 52% / 0.15)",
-                color: "hsl(43 85% 60%)",
-              }}
+              style={{ background: "hsl(43 85% 52% / 0.15)", color: "hsl(43 85% 60%)" }}
             >
-              {pendingRequests.length - acceptedIds.length}
+              {pendingMembers.filter(m => !acceptedIds.includes(m.id)).length}
             </span>
           </div>
 
           <div className="space-y-3">
-            {pendingRequests.map((req) => (
+            {pendingMembers.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">Нет новых запросов</p>
+            )}
+            {pendingMembers.map((req) => (
               <div
                 key={req.id}
-                className={`flex items-center gap-3 p-3 rounded-md transition-all duration-300 ${
-                  acceptedIds.includes(req.id) ? "opacity-40" : ""
-                }`}
+                className={`flex items-center gap-3 p-3 rounded-md transition-all duration-300 ${acceptedIds.includes(req.id) ? "opacity-40" : ""}`}
                 style={{ background: "hsl(222 35% 12%)" }}
               >
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-montserrat font-bold text-xs"
-                  style={{
-                    background: "hsl(43 85% 52% / 0.15)",
-                    color: "hsl(43 85% 60%)",
-                  }}
+                  style={{ background: "hsl(43 85% 52% / 0.15)", color: "hsl(43 85% 60%)" }}
                 >
-                  {req.name[0]}
+                  {(req.name || "?")[0]}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-white truncate">{req.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{req.site}</div>
+                  <div className="text-sm font-medium text-white truncate">{req.name || "Новый участник"}</div>
+                  <div className="text-xs text-muted-foreground truncate">{req.email}</div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-xs text-muted-foreground">{req.date}</span>
                   {!acceptedIds.includes(req.id) ? (
                     <button
                       onClick={() => handleAcceptRequest(req.id)}

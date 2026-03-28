@@ -1,4 +1,6 @@
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
+import { api } from "@/lib/api";
 
 const achievements = [
   {
@@ -66,13 +68,35 @@ const rankBadge = (rank: number) => {
 };
 
 export default function Achievements() {
-  const topThree = achievements.slice(0, 3);
-  const rest = achievements.slice(3);
+  const [liveData, setLiveData] = useState<typeof achievements | null>(null);
+
+  useEffect(() => {
+    api.achievements().then((data) => {
+      if (Array.isArray(data) && data.length > 0) {
+        setLiveData(
+          data.map((d: { id: number; name: string; email: string; unique_token: string; levels_completed: number; quests_access: number; last_active: string }, i: number) => ({
+            name: d.name,
+            email: d.email,
+            site: "—",
+            questsCompleted: d.quests_access ?? 0,
+            levelsCompleted: d.levels_completed ?? 0,
+            totalLevels: 12,
+            lastActive: d.last_active ? new Date(d.last_active).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : "—",
+            uniqueLink: `https://questcontrol.app/join/${d.unique_token}`,
+            rank: i + 1,
+          }))
+        );
+      }
+    });
+  }, []);
+
+  const displayData = liveData ?? achievements;
+  const topThree = displayData.slice(0, 3);
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Podium */}
-      <div className="navy-card rounded-lg p-6">
+      {topThree.length >= 3 && <div className="navy-card rounded-lg p-6">
         <h3 className="font-montserrat font-bold text-white text-sm flex items-center gap-2 mb-6">
           <Icon name="Trophy" size={16} className="gold-text" />
           Топ участников
@@ -145,7 +169,7 @@ export default function Achievements() {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Full table */}
       <div className="navy-card rounded-lg overflow-hidden">
@@ -170,7 +194,7 @@ export default function Achievements() {
               </tr>
             </thead>
             <tbody>
-              {achievements.map((a) => {
+              {displayData.map((a) => {
                 const badge = rankBadge(a.rank);
                 const progress = Math.round((a.levelsCompleted / a.totalLevels) * 100);
                 return (
